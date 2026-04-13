@@ -41,9 +41,10 @@ Logging / Visualization / Robotics Integration
 
 ## Hardware Requirements
 
-- Witmotion IMU sensor (WT901 / JY901)
+- Witmotion IMU sensor (WT9011DCL-BT50)
+- NRF52832 DK (for BLE relay)
 - USB-to-Serial adapter
-- Computer with Python
+- Linux PC with GCC and nRF Command Line Tools
 
 ---
 
@@ -52,16 +53,20 @@ Logging / Visualization / Robotics Integration
 ```bash
 git clone https://github.com/yaochongchow/Witmotion.git
 cd Witmotion
-pip install -r requirements.txt
 ```
+
+See [SETUP.md](SETUP.md) for full build and dependency instructions.
 
 ---
 
 ## Usage
 
 ```bash
-python main.py
+cd src
+./read_usb.sh
 ```
+
+See [RUN.md](RUN.md) for all run options (USB/RTT, BLE receiver, direct serial).
 
 ---
 
@@ -107,10 +112,11 @@ Z: 0.00 °/s
 
 ```
 Witmotion/
-├── main.py
-├── parser/
-├── utils/
-├── data/
+├── nrf52_firmware/      Zephyr BLE central firmware (C)
+├── src/                 PC-side tools and scripts
+├── WT9011DCL_Documents/ Datasheets and protocol PDFs
+├── SETUP.md
+├── RUN.md
 └── README.md
 ```
 
