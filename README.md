@@ -129,9 +129,3 @@ This project emphasizes real-world system behavior:
 - Real-time data handling
 - Reliability under continuous streaming
 - Clean, extensible architecture
-
----
-
-## License
-
-MIT License
