@@ -1,5 +1,7 @@
 # Witmotion BLE IMU Streaming (NRF52832 + RTT)
 
+![Live demo](assets/demo.gif)
+
 This project streams IMU data from a Witmotion BLE sensor (tested with `WT901BLE67`) using an `nRF52832 DK` as the BLE central, then logs decoded samples on a Linux host through RTT.
 
 ## What Works
@@ -76,6 +78,10 @@ datetime,fw_time_ms,seq,acc_x,acc_y,acc_z,gyro_x,gyro_y,gyro_z,qw,qx,qy,qz,rssi_
 
 - `crc16`: calculated CRC16-CCITT-FALSE for the sample payload
 - `crc_ok`: `1` when host verification matches firmware CRC, else `0`
+
+## Result
+
+![Streaming result](assets/result.png)
 
 ## Key Runtime Files
 
