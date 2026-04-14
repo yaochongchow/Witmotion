@@ -1,131 +1,91 @@
-# Witmotion IMU Sensor Interface
+# Witmotion BLE IMU Streaming (NRF52832 + RTT)
 
----
+This project streams IMU data from a Witmotion BLE sensor (tested with `WT901BLE67`) using an `nRF52832 DK` as the BLE central, then logs decoded samples on a Linux host through RTT.
 
-## System Architecture
+## What Works
+
+- Real-time BLE ingestion from Witmotion sensor
+- Packet reassembly and decode in firmware (accel/gyro/euler->quat)
+- Host-side timestamped CSV logging
+- Per-sample CRC16 generation in firmware and verification on host
+
+## Architecture
 
 ```
-Witmotion IMU Sensor
-↓
-UART / Serial Communication
-↓
-Binary Packet Parser
-↓
-Structured Data (Accel / Gyro / Orientation)
-↓
-Logging / Visualization / Robotics Integration
+Witmotion WT901BLE67 (BLE notifications)
+    ->
+nRF52832 DK (Zephyr central, decode + CRC16)
+    ->
+RTT
+    ->
+src/read_usb.sh -> src/read_usb.py (pynrfjprog)
+    ->
+CSV log (with crc_ok column)
 ```
 
----
+## Quick Start
 
-## Features
-
-- Real-time IMU data streaming (20–100 Hz depending on configuration)
-- Binary protocol parsing for Witmotion sensors
-- Extraction of:
-  - Acceleration (X, Y, Z)
-  - Angular velocity (Gyroscope)
-  - Orientation (Roll, Pitch, Yaw)
-- Modular parser design for extensibility
-
----
-
-## Engineering Highlights
-
-- Handles incomplete or misaligned binary packets
-- Built for continuous streaming under real-time constraints
-- Structured output for robotics frameworks (ROS2-ready)
-- Easily extendable to BLE / dashboards / multi-sensor setups
-
----
-
-## Hardware Requirements
-
-- Witmotion IMU sensor (WT9011DCL-BT50)
-- NRF52832 DK (for BLE relay)
-- USB-to-Serial adapter
-- Linux PC with GCC and nRF Command Line Tools
-
----
-
-## Installation
+### 1) Clone
 
 ```bash
 git clone https://github.com/yaochongchow/Witmotion.git
 cd Witmotion
 ```
 
-See [SETUP.md](SETUP.md) for full build and dependency instructions.
+### 2) Build and flash firmware
 
----
-
-## Usage
+Assumes nRF Connect SDK is installed at `~/ncs/v3.0.2` and toolchain exists.
 
 ```bash
-cd src
-./read_usb.sh
+TOOLCHAIN_DIR=~/ncs/toolchains/7cbc0036f4
+export PATH="$PWD/venv/bin:$TOOLCHAIN_DIR/usr/local/bin:$TOOLCHAIN_DIR/usr/bin:$TOOLCHAIN_DIR/opt/bin:$TOOLCHAIN_DIR/opt/zephyr-sdk/arm-zephyr-eabi/bin:$PATH"
+export ZEPHYR_TOOLCHAIN_VARIANT=zephyr
+export ZEPHYR_SDK_INSTALL_DIR="$TOOLCHAIN_DIR/opt/zephyr-sdk"
+
+cd ~/ncs/v3.0.2
+west build -b nrf52dk/nrf52832 --no-sysbuild /path/to/Witmotion/nrf52_firmware
+cd build
+west flash
 ```
 
-See [RUN.md](RUN.md) for all run options (USB/RTT, BLE receiver, direct serial).
+### 3) Run host logger
 
----
+Power on the sensor, then:
 
-## Example Output
-
-```
-Roll: 12.3°
-Pitch: -3.2°
-Yaw: 180.1°
-
-Acceleration:
-X: 0.01 g
-Y: 9.81 g
-Z: 0.02 g
-
-Gyroscope:
-X: 0.02 °/s
-Y: -0.01 °/s
-Z: 0.00 °/s
+```bash
+cd /path/to/Witmotion/src
+AUTO_RESET=1 STARTUP_DELAY_SEC=0.6 ./read_usb.sh
 ```
 
----
+Defaults are optimized for fast attach; `AUTO_RESET=1` is more reliable right after flashing.
 
-## Use Cases
+## Output Format
 
-- Robotics navigation
-- Real-time telemetry pipelines
-- Motion tracking systems
-- Sensor fusion experiments
+Terminal output:
 
----
-
-## Future Improvements
-
-- Web dashboard (React + WebSockets)
-- ROS2 integration
-- BLE support
-- Database logging (Postgres / time-series DB)
-
----
-
-## Project Structure
-
-```
-Witmotion/
-├── nrf52_firmware/      Zephyr BLE central firmware (C)
-├── src/                 PC-side tools and scripts
-├── WT9011DCL_Documents/ Datasheets and protocol PDFs
-├── SETUP.md
-├── RUN.md
-└── README.md
+```text
+DateTime                | Time(ms) | Seq  | Acc(x,y,z) | Gyro(x,y,z) | Q(w,x,y,z) | RSSI | Hz | CRC16
+2026-04-14 13:03:53.714 | 1904 | Seq:0 | Acc(2,-8,0) | Gyro(0,0,0) | Q(31,-5,-90,84) | RSSI:-53 | Hz:0 | CRC:3731
 ```
 
----
+CSV columns:
 
-## Why This Project
+```text
+datetime,fw_time_ms,seq,acc_x,acc_y,acc_z,gyro_x,gyro_y,gyro_z,qw,qx,qy,qz,rssi_dbm,hz,crc16,crc_ok
+```
 
-This project emphasizes real-world system behavior:
+- `crc16`: calculated CRC16-CCITT-FALSE for the sample payload
+- `crc_ok`: `1` when host verification matches firmware CRC, else `0`
 
-- Real-time data handling
-- Reliability under continuous streaming
-- Clean, extensible architecture
+## Key Runtime Files
+
+- [nrf52_firmware/src/main.c](nrf52_firmware/src/main.c)
+- [nrf52_firmware/src/witmotion_central.c](nrf52_firmware/src/witmotion_central.c)
+- [src/read_usb.sh](src/read_usb.sh)
+- [src/read_usb.py](src/read_usb.py)
+
+## Notes
+
+- RTT logging path is implemented through `pynrfjprog` for reliability on this setup.
+- Sensor auto-detection supports Witmotion naming/UUID matching and known address fallback.
+- For setup details and alternatives, see [SETUP.md](SETUP.md) and [RUN.md](RUN.md).
